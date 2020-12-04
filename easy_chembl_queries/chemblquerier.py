@@ -35,10 +35,7 @@ class ChEMBLQuerier:
         except Error as e:
             print(e)
 
-        finally:
-            print("Closing connection")
-            if self.conn:
-                self.conn.close()
+
 
     def get_human_proteins(
         self,
@@ -67,6 +64,38 @@ class ChEMBLQuerier:
             + ")"
         )
         return self.query(query)
+
+
+    def get_cpds_active_against_chemblid_target_list(self, chembl_ids_list, std_val_cutoff=10000,standard_types="'Inhibition', 'IC50','Kd', 'Ac50','IC90', 'EC50'",standard_relations="'<','<=','='"):
+        """Get all compounds recorded as active against proteins in a list
+
+        Args:
+            chembl_ids_list ([str]): list of ChEMBL IDS of targets
+            std_val_cutoff (int, optional): Standard value cutoff in nM. Defaults to 10000.
+            standard_types (str, optional): Comma separated, quote delimited list of activity types to consider. Defaults to "'Inhibition', 'IC50','Kd', 'Ac50','IC90', 'EC50'".
+            standard_relations (str, optional): Comma separated, quote delimited list of relations.  Basically we want <= std_val_cutoff. Defaults to "'<','<=','='".
+        """        
+        
+        # SQLite seems extremely slow at running deeply nested queies.  Trials showed it was much more efficient to perform it in steps rather than one big long query
+
+        chembl_ids_str=",".join("'"+t+"'" for t in chembl_ids_list)
+        activities_string=f"STANDARD_VALUE<={std_val_cutoff} and STANDARD_TYPE in ({standard_types}) and STANDARD_RELATION in ({standard_relations})"
+        
+        assay_ids=self.query(f"select assay_id from assays where tid in (select tid from target_dictionary where chembl_id in ({chembl_ids_str}))")
+        assay_ids=[str(a[0]) for a in assay_ids]
+        
+        activity_ids=self.query("select molregno from activities where assay_id in ("+",".join("'"+t+"'" for t in assay_ids)+f") and {activities_string}")
+        print("select molregno from activities where assay_id in ("+",".join(t for t in assay_ids)+f") and {activities_string}")
+        
+        print("select chembl_id from molecule_dictionary where molregno in (select molregno from activities where assay_id in ("+",".join("'"+assay_id+"'" for assay_id in activity_ids)+")")
+        print(activity_ids)
+        cpd_chembl_ids=self.query("select chembl_id from molecule_dictionary where molregno in (select molregno from activities where assay_id in ("+",".join("'"+str(assay_id)+"'" for assay_id in assay_ids)+")")
+        return cpd_chembl_ids        
+        #query_str=f"select chembl_id from molecule_dictionary where molregno in (select molregno from activities where assay_id in (select assay_id from assays where tid in (select tid from target_dictionary where chembl_id in ({chembl_ids_str})) and {activities_string}  ) )"
+        #print(query_str)
+        #print(self.query(query_str))
+        #return assay_ids
+
 
     def __del__(self):
         if self.conn:

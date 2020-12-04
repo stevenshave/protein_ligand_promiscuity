@@ -7,8 +7,9 @@ from pathlib import Path
 class UniProtWebQuerier:
     _uniprotid_to_ecnumber_dict={}
     _tmp_file=None
-    def __init__(self, custom_dat_file_name=Path("dat_uniprot_ecnumbermapping.json"):[Path,str])
-        if isinstance(custom_dat_file_name, str):
+    def __init__(self, custom_dat_file_name:[Path,str]=Path("dat_uniprot_ecnumbermapping.json")):
+        self._tmp_file=custom_dat_file_name
+        if isinstance(self._tmp_file, str):
             self._tmp_file=Path(custom_dat_file_name)
         assert isinstance(self._tmp_file, Path), "Cusstom_dat_file_name can be a path, or a string which will be converted to one"
         if self._tmp_file.exists():

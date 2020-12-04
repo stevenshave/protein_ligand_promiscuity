@@ -1,4 +1,4 @@
-"""Generate list of human proteins and their docstrings.
+"""Generate list of human proteins and their ecnumbers
 
 
 """
