@@ -66,7 +66,7 @@ class ChEMBLQuerier:
         return self.query(query)
 
 
-    def get_cpds_active_against_chemblid_target_list(self, chembl_ids_list, std_val_cutoff=10000,standard_types="'Inhibition', 'IC50','Kd', 'Ac50','IC90', 'EC50'",standard_relations="'<','<=','='"):
+    def get_cpds_molreg_active_against_chemblid_target_list(self, chembl_ids_list, std_val_cutoff=10000,standard_types="'Inhibition', 'IC50','Kd', 'Ac50','IC90', 'EC50'",standard_relations="'<','<=','='"):
         """Get all compounds recorded as active against proteins in a list
 
         Args:
@@ -82,20 +82,23 @@ class ChEMBLQuerier:
         activities_string=f"STANDARD_VALUE<={std_val_cutoff} and STANDARD_TYPE in ({standard_types}) and STANDARD_RELATION in ({standard_relations})"
         
         assay_ids=self.query(f"select assay_id from assays where tid in (select tid from target_dictionary where chembl_id in ({chembl_ids_str}))")
-        assay_ids=[str(a[0]) for a in assay_ids]
-        
-        activity_ids=self.query("select molregno from activities where assay_id in ("+",".join("'"+t+"'" for t in assay_ids)+f") and {activities_string}")
-        print("select molregno from activities where assay_id in ("+",".join(t for t in assay_ids)+f") and {activities_string}")
-        
-        print("select chembl_id from molecule_dictionary where molregno in (select molregno from activities where assay_id in ("+",".join("'"+assay_id+"'" for assay_id in activity_ids)+")")
-        print(activity_ids)
-        cpd_chembl_ids=self.query("select chembl_id from molecule_dictionary where molregno in (select molregno from activities where assay_id in ("+",".join("'"+str(assay_id)+"'" for assay_id in assay_ids)+")")
-        return cpd_chembl_ids        
-        #query_str=f"select chembl_id from molecule_dictionary where molregno in (select molregno from activities where assay_id in (select assay_id from assays where tid in (select tid from target_dictionary where chembl_id in ({chembl_ids_str})) and {activities_string}  ) )"
-        #print(query_str)
-        #print(self.query(query_str))
-        #return assay_ids
+        print("Found", len(assay_ids), "assay ids")
+        assay_ids=[a[0] for a in assay_ids]
+        molreg_numbers=self.query("select distinct(molregno) from activities where assay_id in ("+",".join("'"+str(t)+"'" for t in assay_ids)+f") and {activities_string}")
+        print("Thats", len(molreg_numbers), "distinct molregnumbers")
+        molreg_numbers=[a[0] for a in molreg_numbers]
+        return molreg_numbers
 
+    def get_smiles_for_molregs(self, molregs_list:list):
+        """Get smiles and molreg tuples for a list of molregs
+
+        Args:
+            molregs_list (list): List of molregs
+        Returns:
+            tuple: tuple of (smiles, molreg)
+        """    
+        smiles_molreg=self.query("select canonical_smiles, molregno from compound_structures where molregno in ("+",".join(str(m) for m in molregs_list)+")")
+        return smiles_molreg
 
     def __del__(self):
         if self.conn:
